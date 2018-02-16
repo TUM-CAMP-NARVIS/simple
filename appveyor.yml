@@ -6,6 +6,7 @@ environment:
     PYTHON_ARCH: "32"
 
     CONAN_UPLOAD: "https://conan.campar.in.tum.de"
+    CONAN_REMOTES: "https://conan.campar.in.tum.de, https://api.bintray.com/conan/bincrafters/public-conan"
     CONAN_REFERENCE: "simple/0.9"
     CONAN_USERNAME: "camposs"
     CONAN_CHANNEL: "stable"
