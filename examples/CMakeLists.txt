@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.3)
 project(simple_examples)
 
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CONAN_INCLUDE_DIRS})
 
 option(BUILD_EXAMPLES_WITH_OPENCV "Build SIMPLE Examples that use OpenCV" FALSE)
 
 if (${BUILD_EXAMPLES_WITH_OPENCV})
   find_package(OpenCV REQUIRED)
   include_directories(${OpenCV_INCLUDE_DIRS})
-  set(LIBRARIES simple-static ${OpenCV_LIBS})
+  set(LIBRARIES simple ${OpenCV_LIBS})
   add_definitions(-DDATA_DIR="${PROJECT_SOURCE_DIR}/data/")
 
   set(img_pub_example "img_pub_example")
@@ -19,7 +19,7 @@ if (${BUILD_EXAMPLES_WITH_OPENCV})
   target_link_libraries(example_image_subscriber ${LIBRARIES})
   install(TARGETS example_image_publisher example_image_subscriber DESTINATION ${CMAKE_INSTALL_BINDIR})
 else()
-  set(LIBRARIES simple-static)
+  set(LIBRARIES simple)
 endif()
 
 add_executable(example_publisher src/example_publisher.cpp)

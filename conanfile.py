@@ -24,7 +24,8 @@ class SimpleConan(ConanFile):
 
 
     def build(self):
-        cmake = CMake(self)
+        cmake = CMake(self, parallel=False)
+        cmake.verbose=True
         cmake.definitions["BUILD_SHARED_LIBS"] = self.options.shared
         cmake.definitions["BUILD_TESTS"] = True
         cmake.definitions["BUILD_EXAMPLES"] = True

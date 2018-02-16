@@ -76,7 +76,7 @@ target_include_directories(${PROJECT_NAME} INTERFACE
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(${PROJECT_NAME} INTERFACE
-  CONAN_PKG:zmq ${CMAKE_THREAD_LIBS_INIT} simple_msgs ${coverage_lib})
+  CONAN_PKG::zmq ${CMAKE_THREAD_LIBS_INIT} simple_msgs ${coverage_lib})
 
 ###### INSTALLATION
 
