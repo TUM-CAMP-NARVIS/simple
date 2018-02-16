@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.3)
 project(simple_msgs)
 
-# Find FlatBuffers
-find_package(Flatbuffers REQUIRED)
-
+# Find FlatBuffers flatc executable
 find_program(FLATBUFFERS_FLATC_EXECUTABLE flatc
+  ${FLATBUFFERS_BIN_DIR}
   /usr/local/bin
   /usr/bin
   "$ENV{PROGRAMFILES}/FlatBuffers/bin"
@@ -51,7 +50,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(${PROJECT_NAME} PUBLIC flatbuffers::flatbuffers)
+target_link_libraries(${PROJECT_NAME} PUBLIC CONAN_PKG::flatbuffers)
 
 ###### INSTALLATION
 

@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.3)
 project(simple)
 
+include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(TARGETS KEEP_RPATHS)
+
 # Set the project version
 set(PROJECT_VER_PATCH 0)
 set(PROJECT_VER_MINOR 0)
@@ -59,7 +62,6 @@ add_subdirectory(msgs)
 ###### FIND LIBRARIES
 
 find_package(Threads REQUIRED)
-find_package(ZeroMQ REQUIRED)
 
 ###### TARGETS
 
@@ -71,27 +73,15 @@ add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/msgs/include>
-  $<BUILD_INTERFACE:${ZeroMQ_INCLUDE_DIR}>
   $<INSTALL_INTERFACE:include>)
 
 target_link_libraries(${PROJECT_NAME} INTERFACE
-  libzmq ${CMAKE_THREAD_LIBS_INIT} simple_msgs ${coverage_lib})
-
-add_library(${PROJECT_NAME}-static INTERFACE)
-
-target_include_directories(${PROJECT_NAME}-static INTERFACE
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/msgs/include>
-  $<BUILD_INTERFACE:${ZeroMQ_INCLUDE_DIR}>
-  $<INSTALL_INTERFACE:include>)
-
-target_link_libraries(${PROJECT_NAME}-static INTERFACE
-  libzmq-static ${CMAKE_THREAD_LIBS_INIT} simple_msgs ${coverage_lib})
+  CONAN_PKG:zmq ${CMAKE_THREAD_LIBS_INIT} simple_msgs ${coverage_lib})
 
 ###### INSTALLATION
 
 # Install SIMPLE in the desired folder
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}-static
+install(TARGETS ${PROJECT_NAME}
   EXPORT "simpleTargets"
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

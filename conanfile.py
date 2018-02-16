@@ -25,6 +25,7 @@ class SimpleConan(ConanFile):
     def build(self):
         cmake = CMake(self)
         cmake.definitions["BUILD_SHARED_LIBS"] = self.options.shared
+        cmake.definitions["FLATBUFFERS_BIN_DIR"] = os.path.join(self.deps_cpp_info["flatbuffers"].rootpath, "bin")
         cmake.configure()
         cmake.build()
         cmake.install()
