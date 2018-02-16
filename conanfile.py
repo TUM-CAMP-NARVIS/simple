@@ -11,7 +11,8 @@ class SimpleConan(ConanFile):
     url = "https://github.com/IFL-CAMP/simple.git"
     description = "S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort. A Cross-Platform C++ Library to Exchange Data Across Network."
     license = "https://github.com/IFL-CAMP/simple/blob/master/LICENSE"
-    exports_sources = ["LICENSE"]
+
+    generators = "cmake"
     settings = "os", "arch", "compiler", "build_type"
     options = {"shared": [True, False]}
     default_options = "shared=False"
@@ -19,7 +20,7 @@ class SimpleConan(ConanFile):
     requires = "zmq/[>=4.2.3]@camposs/stable", "flatbuffers/[>=1.8.0]@camposs/stable"
 
     # all sources are deployed with the package
-    exports_sources = "examples/*", "include/*", "msgs/*", "tests/*", "CMakeLists.txt", "simpleConfig.cmake"
+    exports_sources = "examples/*", "include/*", "msgs/*", "tests/*", "CMakeLists.txt", "simpleConfig.cmake", "LICENSE"
 
 
     def build(self):
