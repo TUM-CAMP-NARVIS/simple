@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.3)
 project(simple_examples)
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
 option(BUILD_EXAMPLES_WITH_OPENCV "Build SIMPLE Examples that use OpenCV" FALSE)
 
 if (${BUILD_EXAMPLES_WITH_OPENCV})

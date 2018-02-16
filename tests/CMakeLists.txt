@@ -9,6 +9,7 @@ if(NOT EXISTS ${PROJECT_SOURCE_DIR}/include/catch.hpp)
 		)
 endif()
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
 include_directories(include)
 
 #TESTS FOR WRAPPERS
