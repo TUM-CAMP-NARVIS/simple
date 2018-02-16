@@ -16,7 +16,7 @@ class SimpleConan(ConanFile):
     options = {"shared": [True, False]}
     default_options = "shared=False"
 
-    requirements = "zmq/[>=4.2.3]@camposs/stable", "flatbuffers/[>=1.8.0]@camposs/stable"
+    requires = "zmq/[>=4.2.3]@camposs/stable", "flatbuffers/[>=1.8.0]@camposs/stable"
 
     # all sources are deployed with the package
     exports_sources = "examples/*", "include/*", "msgs/*", "tests/*", "CMakeLists.txt", "simpleConfig.cmake"
