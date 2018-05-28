@@ -3,9 +3,9 @@ project(simple_examples)
 
 include_directories(${CONAN_INCLUDE_DIRS})
 
-option(BUILD_EXAMPLES_WITH_OPENCV "Build SIMPLE Examples that use OpenCV" FALSE)
+option(SIMPLE_BUILD_OPENCV_EXAMPLES "Build SIMPLE Examples that use OpenCV" FALSE)
 
-if (${BUILD_EXAMPLES_WITH_OPENCV})
+if (${SIMPLE_BUILD_OPENCV_EXAMPLES})
   find_package(OpenCV REQUIRED)
   include_directories(${OpenCV_INCLUDE_DIRS})
   set(LIBRARIES simple ${OpenCV_LIBS})

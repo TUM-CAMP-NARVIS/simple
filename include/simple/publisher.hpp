@@ -1,6 +1,7 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser Public License as published by
@@ -19,39 +20,29 @@
 #ifndef SIMPLE_PUBLISHER_HPP
 #define SIMPLE_PUBLISHER_HPP
 
-#include "simple/generic_socket.hpp"
+#include <zmq.h>
 #include <memory>
 #include <string>
-#include <zmq.h>
+#include "simple/generic_socket.hpp"
 
-namespace simple
-{
+namespace simple {
 /**
  * @brief Creates a publisher socket for a specific type of message.
  */
 template <typename T>
-class Publisher : public GenericSocket<T>
-{
+class Publisher : public GenericSocket<T> {
 public:
   Publisher() = default;
   /**
-   * @brief Class constructor. Creates a ZMQ_PUB socket and binds it to the port.
+   * @brief Class constructor. Creates a ZMQ_PUB socket and binds it to the
+   * port.
    * @param port string for the connection port.
    */
-  explicit Publisher<T>(const std::string& address)
-    : GenericSocket<T>(ZMQ_PUB)
-  {
-    GenericSocket<T>::bind(address);
-  }
+  explicit Publisher<T>(const std::string& address) : GenericSocket<T>(ZMQ_PUB) { GenericSocket<T>::bind(address); }
 
-  Publisher(const Publisher& other)
-    : GenericSocket<T>(ZMQ_PUB)
-  {
-    GenericSocket<T>::bind(other.address_);
-  }
+  Publisher(const Publisher& other) : GenericSocket<T>(ZMQ_PUB) { GenericSocket<T>::bind(other.address_); }
 
-  Publisher& operator=(const Publisher& other)
-  {
+  Publisher& operator=(const Publisher& other) {
     GenericSocket<T>::renewSocket(ZMQ_PUB);
     GenericSocket<T>::bind(other.address_);
     return *this;
@@ -62,15 +53,16 @@ public:
   /**
    * @brief Publishes the message through the open socket.
    * @param msg: SIMPLE class wrapper for Flatbuffer messages.
+   * @return size of the message, in bytes, published. Returns -1 if send fails.
    */
-  void publish(const T& msg) { publish(msg.getBufferData()); }
+  int publish(const T& msg) { return publish(msg.getBufferData()); }
   /**
    * @brief Publishes the message through the open socket.
    * @param buffer: buffer containing the data to be published.
+   * @return size of the message, in bytes, published. Returns -1 if send fails.
    */
-  void publish(const std::shared_ptr<flatbuffers::DetachedBuffer>& buffer)
-  {
-    GenericSocket<T>::sendMsg(buffer, "[Simple Publisher] - ");
+  int publish(const std::shared_ptr<flatbuffers::DetachedBuffer>& buffer) {
+    return GenericSocket<T>::sendMsg(buffer, "[Simple Publisher] - ");
   }
 };
 }  // Namespace simple.

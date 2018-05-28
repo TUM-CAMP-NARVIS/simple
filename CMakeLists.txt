@@ -1,14 +1,18 @@
 cmake_minimum_required(VERSION 3.3)
 project(simple)
 
-include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup(TARGETS KEEP_RPATHS)
+
+if(EXISTS ${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+    include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup(TARGETS)
+endif()
 
 # Set the project version
 set(PROJECT_VER_PATCH 0)
 set(PROJECT_VER_MINOR 0)
 set(PROJECT_VER_MAJOR 1)
 set(simple_VERSION "${PROJECT_VER_MAJOR}.${PROJECT_VER_MINOR}.${PROJECT_VER_PATCH}")
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(GNUInstallDirs)
 
@@ -36,16 +40,16 @@ endif()
 
 ###### OPTIONAL BUILDS
 
-option(BUILD_EXAMPLES "Build SIMPLE Examples" FALSE)
-option(BUILD_TESTS "Build SIMPLE Tests" FALSE)
+option(SIMPLE_BUILD_EXAMPLES "Build SIMPLE Examples" FALSE)
+option(SIMPLE_BUILD_TESTS "Build SIMPLE Tests" FALSE)
 
 # Examples
-if (${BUILD_EXAMPLES})
+if (${SIMPLE_BUILD_EXAMPLES})
   add_subdirectory(examples)
 endif()
 
 # Tests
-if (${BUILD_TESTS})
+if (${SIMPLE_BUILD_TESTS})
   include(CTest)
   if (CMAKE_CXX_COMPILER_ID MATCHES "GNU") # Coverage flags for GCC
     add_compile_options(-g -O0 -fprofile-arcs -ftest-coverage)

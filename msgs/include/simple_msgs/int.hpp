@@ -19,44 +19,34 @@
 #ifndef SIMPLE_MSGS_INT_H
 #define SIMPLE_MSGS_INT_H
 
-#include "numeric_type.hpp"
 #include "generated/int_generated.h"
+#include "numeric_type.hpp"
 
-namespace simple_msgs
-{
+namespace simple_msgs {
 using Int = NumericType<int>;
 
 template <>
-NumericType<int>::NumericType(const uint8_t* data)
-  : GenericMessage()
-  , data_(GetIntFbs(data)->data())
-{
-}
+NumericType<int>::NumericType(const void* data) : data_{GetIntFbs(data)->data()} {}
 
 template <>
-NumericType<int>& NumericType<int>::operator=(const uint8_t* data)
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  data_ = GetIntFbs(data)->data();
+NumericType<int>& NumericType<int>::operator=(std::shared_ptr<void*> data) {
+  std::lock_guard<std::mutex> lock{mutex_};
+  data_ = GetIntFbs(*data)->data();
   return *this;
 }
 
 template <>
-std::shared_ptr<flatbuffers::DetachedBuffer> NumericType<int>::getBufferData() const
-{
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto builder = std::unique_ptr<flatbuffers::FlatBufferBuilder>(new flatbuffers::FlatBufferBuilder(1024));
-
-  IntFbsBuilder tmp_builder(*builder);
+std::shared_ptr<flatbuffers::DetachedBuffer> NumericType<int>::getBufferData() const {
+  std::lock_guard<std::mutex> lock{mutex_};
+  flatbuffers::FlatBufferBuilder builder{1024};
+  IntFbsBuilder tmp_builder{builder};
   tmp_builder.add_data(data_);
-  FinishIntFbsBuffer(*builder, tmp_builder.Finish());
-
-  return std::make_shared<flatbuffers::DetachedBuffer>(builder->Release());
+  FinishIntFbsBuffer(builder, tmp_builder.Finish());
+  return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
 template <>
-inline const char* NumericType<int>::getTopic()
-{
+inline std::string NumericType<int>::getTopic() {
   return IntFbsIdentifier();
 }
 }  // Namespace simple_msgs.
