@@ -13,7 +13,7 @@ class SimpleConan(ConanFile):
     license = "https://github.com/IFL-CAMP/simple/blob/master/LICENSE"
 
     generators = "cmake"
-    settings = "os", "arch", "compiler", "build_type"
+    settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False]}
     default_options = "shared=False"
 

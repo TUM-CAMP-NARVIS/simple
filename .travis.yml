@@ -21,7 +21,6 @@ osx: &osx
    language: generic
 matrix:
    include:
-
       - <<: *linux
         env: CONAN_GCC_VERSIONS=5 CONAN_DOCKER_IMAGE=lasote/conangcc54
       - <<: *linux
