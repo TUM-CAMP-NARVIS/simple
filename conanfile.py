@@ -25,6 +25,7 @@ class SimpleConan(ConanFile):
     def configure(self):
         if self.options.shared:
             self.options['flatbuffers'].shared = True
+            self.options['zmq'].shared = True
 
     def build(self):
         cmake = CMake(self)
