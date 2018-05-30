@@ -22,6 +22,9 @@ class SimpleConan(ConanFile):
     # all sources are deployed with the package
     exports_sources = "examples/*", "include/*", "msgs/*", "tests/*", "CMakeLists.txt", "simpleConfig.cmake", "LICENSE"
 
+    def configure(self):
+        if self.options.shared:
+            self.options['flatbuffers'].shared = True
 
     def build(self):
         cmake = CMake(self)
