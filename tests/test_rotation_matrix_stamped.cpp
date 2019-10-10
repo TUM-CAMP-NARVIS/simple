@@ -1,43 +1,35 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
-#include "simple_msgs/header.h"
-#include "simple_msgs/rotation_matrix.h"
-#include "simple_msgs/rotation_matrix_stamped.h"
+
+#include "random_generators.hpp"
+#include "simple_msgs/rotation_matrix_stamped.hpp"
+
+using namespace simple_tests;
 
 // TEST FOR USING THE STAMPED ROTATION MATRIX MESSAGE WRAPPER
 
 SCENARIO("Using a RotationMatrixStamped Message") {
-  double double_1 = static_cast<double>(rand()) / RAND_MAX;
-  double double_2 = static_cast<double>(rand()) / RAND_MAX;
-  double double_3 = static_cast<double>(rand()) / RAND_MAX;
-  double double_4 = static_cast<double>(rand()) / RAND_MAX;
-  double double_5 = static_cast<double>(rand()) / RAND_MAX;
-  double double_6 = static_cast<double>(rand()) / RAND_MAX;
-  double double_7 = static_cast<double>(rand()) / RAND_MAX;
-  double double_8 = static_cast<double>(rand()) / RAND_MAX;
-  double double_9 = static_cast<double>(rand()) / RAND_MAX;
+  double double_1 = double_dist(generator);
+  double double_2 = double_dist(generator);
+  double double_3 = double_dist(generator);
+  double double_4 = double_dist(generator);
+  double double_5 = double_dist(generator);
+  double double_6 = double_dist(generator);
+  double double_7 = double_dist(generator);
+  double double_8 = double_dist(generator);
+  double double_9 = double_dist(generator);
   long long time = rand();
   int random_int = rand() / 100;
   std::string random_string = std::to_string(double_1);
@@ -46,6 +38,7 @@ SCENARIO("Using a RotationMatrixStamped Message") {
   simple_msgs::RotationMatrix empty_rotation_matrix{};
   simple_msgs::Header empty_header{};
   simple_msgs::Header random_header{random_int, random_string, time};
+
   // Test the constructors.
   GIVEN("A RotationMatrixStamped created from an empty constructor") {
     simple_msgs::RotationMatrixStamped empty_rotation_matrix_stamped{};
@@ -63,16 +56,6 @@ SCENARIO("Using a RotationMatrixStamped Message") {
       THEN("They all have to be equal to the parameters from the constructor") {
         REQUIRE(rotation_matrix_stamped.getRotationMatrix() == random_rotation_matrix);
         REQUIRE(rotation_matrix_stamped.getHeader() == random_header);
-      }
-    }
-  }
-
-  GIVEN("A RotationMatrixStamped created from the serialized data of an existing RotationMatrixStamped") {
-    simple_msgs::RotationMatrixStamped rotation_matrix_stamped{random_header, random_rotation_matrix};
-    simple_msgs::RotationMatrixStamped buffer_rotation_matrix_stamped{rotation_matrix_stamped.getBufferData()->data()};
-    WHEN("I check the RotationMatrixStamped's elements") {
-      THEN("The new RotationMatrixStamped has to be equal to the other") {
-        REQUIRE(buffer_rotation_matrix_stamped == rotation_matrix_stamped);
       }
     }
   }
@@ -98,14 +81,6 @@ SCENARIO("Using a RotationMatrixStamped Message") {
   // Testing Copy-assignments.
   GIVEN("A RotationMatrixStamped") {
     simple_msgs::RotationMatrixStamped rotation_matrix_stamped{random_header, random_rotation_matrix};
-    WHEN("I copy-assign from that RotationMatrixStamped's buffer") {
-      simple_msgs::RotationMatrixStamped copy_assigned_buffer_rotation_matrix_stamped{};
-      auto data_ptr = std::make_shared<void*>(rotation_matrix_stamped.getBufferData()->data());
-      copy_assigned_buffer_rotation_matrix_stamped = data_ptr;
-      THEN("The new RotationMatrixStamped has to be same as the original") {
-        REQUIRE(copy_assigned_buffer_rotation_matrix_stamped == rotation_matrix_stamped);
-      }
-    }
     WHEN("I copy-assign from that RotationMatrixStamped") {
       simple_msgs::RotationMatrixStamped copy_assigned_rotation_matrix_stamped{};
       copy_assigned_rotation_matrix_stamped = rotation_matrix_stamped;
@@ -151,11 +126,11 @@ SCENARIO("Using a RotationMatrixStamped Message") {
     }
   }
 
-  // Testing Topic and ostream
+  // Testing message topic and stream operator.
   GIVEN("A Rotation Matrix Stamped") {
     simple_msgs::RotationMatrixStamped rotation_matrix_stamped{random_header, random_rotation_matrix};
     WHEN("I get the message topic") {
-      std::string topic_name = rotation_matrix_stamped.getTopic();
+      std::string topic_name = simple_msgs::RotationMatrixStamped::getTopic();
       THEN("I get the correct one") { REQUIRE(topic_name == "RMST"); }
     }
     WHEN("I print the RotatioMatrixStamped") {

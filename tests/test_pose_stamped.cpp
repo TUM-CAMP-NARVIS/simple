@@ -3,41 +3,31 @@
  * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
  * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
 
-#include "simple_msgs/header.h"
-#include "simple_msgs/pose.h"
-#include "simple_msgs/pose_stamped.h"
+#include "random_generators.hpp"
+#include "simple_msgs/pose_stamped.hpp"
+
+using namespace simple_tests;
 
 // TEST FOR USING THE STAMPED POSE MESSAGE WRAPPER
 
 SCENARIO("Using a PoseStamped Message") {
-  double double_1 = static_cast<double>(rand()) / RAND_MAX;
-  double double_2 = static_cast<double>(rand()) / RAND_MAX;
-  double double_3 = static_cast<double>(rand()) / RAND_MAX;
-  double double_4 = static_cast<double>(rand()) / RAND_MAX;
-  double double_5 = static_cast<double>(rand()) / RAND_MAX;
-  double double_6 = static_cast<double>(rand()) / RAND_MAX;
-  double double_7 = static_cast<double>(rand()) / RAND_MAX;
+  double double_1 = double_dist(generator);
+  double double_2 = double_dist(generator);
+  double double_3 = double_dist(generator);
+  double double_4 = double_dist(generator);
+  double double_5 = double_dist(generator);
+  double double_6 = double_dist(generator);
+  double double_7 = double_dist(generator);
   long long time = rand();
   int random_int = rand() / 100;
   std::string random_string = std::to_string(double_1);
@@ -47,6 +37,7 @@ SCENARIO("Using a PoseStamped Message") {
   simple_msgs::Pose empty_pose{};
   simple_msgs::Header empty_header{};
   simple_msgs::Header random_header{random_int, random_string, time};
+
   // Test the constructors.
   GIVEN("A PoseStamped created from an empty constructor") {
     simple_msgs::PoseStamped empty_pose_stamped{};
@@ -71,10 +62,6 @@ SCENARIO("Using a PoseStamped Message") {
   // Testing copy constructors.
   GIVEN("A PoseStamped") {
     simple_msgs::PoseStamped pose_stamped{random_header, random_pose};
-    WHEN("Another PoseStamped is created from the serialized data of the original one") {
-      simple_msgs::PoseStamped buffer_pose_stamped{pose_stamped.getBufferData()->data()};
-      THEN("The new PoseStamped has to be equal to the other") { REQUIRE(buffer_pose_stamped == pose_stamped); }
-    }
     WHEN("I copy-construct a new PoseStamped") {
       simple_msgs::PoseStamped copy_pose_stamped{pose_stamped};
       THEN("The new PoseStamped is equal to the other") { REQUIRE(copy_pose_stamped == pose_stamped); }
@@ -91,14 +78,6 @@ SCENARIO("Using a PoseStamped Message") {
   // Testing Copy-assignments.
   GIVEN("A PoseStamped") {
     simple_msgs::PoseStamped pose_stamped{random_header, random_pose};
-    WHEN("I copy-assign from that PoseStamped's buffer") {
-      simple_msgs::PoseStamped copy_assigned_buffer_pose_stamped{};
-      auto data_ptr = std::make_shared<void*>(pose_stamped.getBufferData()->data());
-      copy_assigned_buffer_pose_stamped = data_ptr;
-      THEN("The new PoseStamped has to be same as the original") {
-        REQUIRE(copy_assigned_buffer_pose_stamped == pose_stamped);
-      }
-    }
     WHEN("I copy-assign from that PoseStamped") {
       simple_msgs::PoseStamped copy_assigned_pose_stamped{};
       copy_assigned_pose_stamped = pose_stamped;
@@ -142,11 +121,11 @@ SCENARIO("Using a PoseStamped Message") {
     }
   }
 
-  // Testing Topic
+  // Testing message topic and stream operators.
   GIVEN("A point") {
     simple_msgs::PoseStamped pose_stamped{};
     WHEN("I get the message topic") {
-      std::string topic_name = pose_stamped.getTopic();
+      std::string topic_name = simple_msgs::PoseStamped::getTopic();
       THEN("I get the correct one") { REQUIRE(topic_name == "POST"); }
     }
     WHEN("I print the PoseStamped") {

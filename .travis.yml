@@ -8,6 +8,10 @@ env:
      - CONAN_REMOTES: "https://conan.campar.in.tum.de/api/conan/conan-camposs, https://api.bintray.com/conan/bincrafters/public-conan"
      - CONAN_STABLE_BRANCH_PATTERN: "release/*"
      - CONAN_UPLOAD_ONLY_WHEN_STABLE: 1 # Will only upload when the branch matches "release/*"
+=======
+language: cpp
+sudo: true
+dist: xenial
 
 linux: &linux
    os: linux
@@ -43,3 +47,175 @@ install:
 script:
   - chmod +x .travis/run.sh
   - ./.travis/run.sh
+=======
+  - os: linux
+    compiler: gcc
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - gcc-5
+        - g++-5
+    env: MATRIX_EVAL="CC='gcc-5' && CXX='g++-5'" BUILD_TYPE='Debug'
+    if: tag IS blank
+
+  - os: linux
+    compiler: gcc
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - gcc-5
+        - g++-5
+    env: MATRIX_EVAL="CC='gcc-5' && CXX='g++-5'" BUILD_TYPE='Release'
+    if: tag IS blank
+
+  - os: linux
+    compiler: gcc
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - gcc-5
+        - g++-5
+    env: MATRIX_EVAL="CC='gcc-5' && CXX='g++-5'" BUILD_TYPE='Coverage'
+    if: tag IS blank
+
+  - os: linux
+    compiler: gcc
+    addons:
+      apt:
+        sources:
+        - ubuntu-toolchain-r-test
+        packages:
+        - gcc-5
+        - g++-5
+    env: MATRIX_EVAL="CC='gcc-5' && CXX='g++-5'" BUILD_TYPE='Release' SIMPLE_PACKAGE='True'
+    if: tag IS present
+
+  - os: linux
+    compiler: clang
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-precise-3.8
+        - ubuntu-toolchain-r-test
+        packages:
+        - clang-3.8
+    env: MATRIX_EVAL="CXX='clang++-3.8'" BUILD_TYPE='Debug'
+    if: tag IS blank
+
+  - os: linux
+    compiler: clang
+    addons:
+      apt:
+        sources:
+        - llvm-toolchain-precise-3.8
+        - ubuntu-toolchain-r-test
+        packages:
+        - clang-3.8
+    env: MATRIX_EVAL="CXX='clang++-3.8'" BUILD_TYPE='Release'
+    if: tag IS blank
+
+  - os: osx
+    osx_image: xcode8.3
+    compiler: clang
+    env: MATRIX_EVAL="CXX='clang++'" BUILD_TYPE='Debug'
+    if: tag IS blank
+
+  - os: osx
+    osx_image: xcode8.3
+    compiler: clang
+    env: MATRIX_EVAL="CXX='clang++'" BUILD_TYPE='Release'
+    if: tag IS blank
+
+  - os: osx
+    osx_image: xcode8.3
+    compiler: clang
+    env: MATRIX_EVAL="CXX='clang++'" BUILD_TYPE='Release' SIMPLE_PACKAGE='True'
+    if: tag IS present
+
+before_install:
+- |
+  if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+    sudo apt-get update --option Acquire::Retries=100 --option Acquire::http::Timeout="60" # Hopefully preventing Travis to fail when installing from apt
+  fi
+- eval "${MATRIX_EVAL}"
+
+install:
+- DEPS_DIR="${TRAVIS_BUILD_DIR}/deps"
+- mkdir -p ${DEPS_DIR} && cd ${DEPS_DIR}
+- |
+  if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+    # Install CMake 3.3
+    CMAKE_URL="http://www.cmake.org/files/v3.3/cmake-3.3.2-Linux-x86_64.tar.gz"
+    mkdir -p cmake && travis_retry wget --no-check-certificate --quiet -O - ${CMAKE_URL} | tar --strip-components=1 -xz -C cmake
+    export PATH=${DEPS_DIR}/cmake/bin:${PATH}
+  elif [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+    which cmake || brew install cmake
+  fi
+- |
+  if [[ "${BUILD_TYPE}" == "Coverage" ]]; then
+    # Install LCOV
+    sudo apt install lcov
+  fi
+- cd ${DEPS_DIR}
+- git clone https://github.com/google/flatbuffers.git
+- cd flatbuffers && mkdir -p flatbuffer_build && cd flatbuffer_build
+- cmake -DCMAKE_BUILD_TYPE=Release ..
+- sudo make -j8 install
+- cd ${DEPS_DIR}
+- git clone https://github.com/zeromq/libzmq.git
+- cd libzmq && mkdir -p libzmq_build && cd libzmq_build
+- cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_CURVE=OFF -DZMQ_BUILD_TESTS=OFF ..
+- sudo make -j8 install
+- cd ${DEPS_DIR}
+- git clone https://github.com/zeromq/cppzmq.git
+- cd cppzmq && mkdir -p cppzmq_build && cd cppzmq_build
+- cmake -DCMAKE_BUILD_TYPE=Release -DCPPZMQ_BUILD_TESTS=OFF ..
+- sudo make -j8 install
+
+before_script:
+- cd ${TRAVIS_BUILD_DIR}
+- |
+  if [[ "${BUILD_TYPE}" == "Coverage" ]]; then
+    lcov --directory . --zerocounters
+  fi
+- mkdir -p build && cd build
+- |
+  if [[ "${SIMPLE_PACKAGE}" == "True" ]]; then
+    cmake .. -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DSIMPLE_BUILD_STATIC=OFF -DSIMPLE_ENABLE_CPACK=ON
+  else
+    cmake .. -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DSIMPLE_BUILD_TESTS=ON -DSIMPLE_BUILD_EXAMPLES=ON
+  fi
+
+script:
+- make -j8
+- |
+  if [[ "${SIMPLE_PACKAGE}" != "True" ]]; then  
+    ctest -R simple_tests -C Release --output-on-failure   
+  fi
+
+before_deploy:
+- cpack
+- |
+  if [[ "${TRAVIS_OS_NAME}" == "linux" ]]; then
+    export RELEASE_PKG_FILE=$(ls *.deb)
+  else
+    export RELEASE_PKG_FILE=$(ls *.tar.gz) 
+  fi
+- echo "deploying $RELEASE_PKG_FILE to GitHub releases"
+
+deploy:
+  skip_cleanup: true
+  provider: releases
+  api_key:
+    secure: JK+I7hl4CC7r2FszwagkswyjX8TeIbVXdjvG1FK8z/aeKpW2GYF6648neJuwMqIhlIlEtomUBOdLz+SXmPKIa2xTlFPvn388B2MBM/ZkJffeYs0rj4pictz1EDcZ7lgB7E8THB1bCGrICe3Jq1CoLhuWwZ91V3WgQrStCgQP9NY7JRP2uOKmGPpFf+drDQrKGuBYUak2ihoCyxTi/0BZL1I1yA46820U7fK3NaMIKPL2XnfVRJ+z01FY6riiGDxeitcrdB3tEOFIUjgM1lqTYbJ8X32N3l11kSHlogDPvbfbhwcP9CuoMEEycv8unWPWMdqucCM3XMD6R1Z28RXOwENNBGsmQQiJHDnRj+0oLqiHt5kKX0F/JMuBtZz/0WR2d9SWoAjj9dsYML+q5pAV5ESOTlQavcHq9aWJP/nSTzZYdp2zCDGJO48DyT6Z6ihrmgRWSzBSK/5jzuRLaJB3s4S6bpvkTY+CjLu7pP3xvnbHXMH5JQxU6yjf2KivjZ7DXZt0t2O+v3D/rwkGJ3ATU6iGjTxzQbVMhURlz7fWIjsFZATDbgizcHYJHwkVmKLzZmKEb6J0cLOdgGn23eGTjWEb0tL84eu+EcOTLBGhXtvhRtWyevehndEsnhJOyo+0Xm47CU5U6NDesVMXeoZi0Ts+zYflx85q7fvGB7R3amQ=
+  file_glob: true
+  file: "${RELEASE_PKG_FILE}"
+  on:
+    tags: true
+>>>>>>> 97c17bcb75ceb637797c7cae59d90f20b8d56cd3

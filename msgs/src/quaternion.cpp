@@ -1,22 +1,15 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include "simple_msgs/quaternion.h"
+#include "simple_msgs/quaternion.hpp"
+#include "simple_msgs/generated/quaternion_generated.h"
 
 namespace simple_msgs {
 Quaternion::Quaternion(double x, double y, double z, double w) : data_{{x, y, z, w}} {}
@@ -33,41 +26,51 @@ Quaternion::Quaternion(const void* data) {
   data_[3] = q->w();
 }
 
-Quaternion::Quaternion(const Quaternion& other) : Quaternion{other.data_} {}
+Quaternion::Quaternion(const Quaternion& other, const std::lock_guard<std::mutex>&) : Quaternion{other.data_} {}
 
-Quaternion::Quaternion(Quaternion&& other) noexcept : data_{std::move(other.data_)} {}
+Quaternion::Quaternion(Quaternion&& other, const std::lock_guard<std::mutex>&) noexcept
+  : data_{std::move(other.data_)} {}
 
-Quaternion& Quaternion::operator=(const Quaternion& other) {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    data_ = other.data_;
+Quaternion::Quaternion(const Quaternion& other) : Quaternion{other, std::lock_guard<std::mutex>(other.mutex_)} {}
+
+Quaternion::Quaternion(Quaternion&& other) noexcept
+  : Quaternion{std::forward<Quaternion>(other), std::lock_guard<std::mutex>(other.mutex_)} {}
+
+Quaternion& Quaternion::operator=(const Quaternion& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    data_ = rhs.data_;
   }
   return *this;
 }
 
-Quaternion& Quaternion::operator=(Quaternion&& other) noexcept {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    data_ = other.data_;
+Quaternion& Quaternion::operator=(Quaternion&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    data_ = rhs.data_;
   }
   return *this;
 }
 
-Quaternion& Quaternion::operator=(const std::array<double, 4>& array) {
+Quaternion& Quaternion::operator=(const std::array<double, 4>& rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  data_ = array;
+  data_ = rhs;
   return *this;
 }
 
-Quaternion& Quaternion::operator=(std::array<double, 4>&& array) noexcept {
+Quaternion& Quaternion::operator=(std::array<double, 4>&& rhs) noexcept {
   std::lock_guard<std::mutex> lock{mutex_};
-  data_ = array;
+  data_ = std::move(rhs);
   return *this;
 }
 
-Quaternion& Quaternion::operator=(std::shared_ptr<void*> data) {
+Quaternion& Quaternion::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  auto q = GetQuaternionFbs(*data);
+  auto q = GetQuaternionFbs(*rhs);
   data_[0] = q->x();
   data_[1] = q->y();
   data_[2] = q->z();
@@ -86,6 +89,8 @@ std::shared_ptr<flatbuffers::DetachedBuffer> Quaternion::getBufferData() const {
   FinishQuaternionFbsBuffer(builder, tmp_builder.Finish());
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
+
+std::string Quaternion::getTopic() { return QuaternionFbsIdentifier(); }
 
 void Quaternion::setX(double x) {
   std::lock_guard<std::mutex> lock{mutex_};
@@ -107,7 +112,11 @@ void Quaternion::setW(double w) {
   data_[3] = w;
 }
 
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const Quaternion& q) {
+  std::lock_guard<std::mutex> lock{q.mutex_};
   out << "Quaternion \n \t"
       << "x: " << std::to_string(q.data_[0]) << "\n \t"
       << "y: " << std::to_string(q.data_[1]) << "\n \t"

@@ -1,24 +1,15 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include <utility>
-
-#include "simple_msgs/quaternion_stamped.h"
+#include "simple_msgs/quaternion_stamped.hpp"
+#include "simple_msgs/generated/quaternion_stamped_generated.h"
 
 namespace simple_msgs {
 QuaternionStamped::QuaternionStamped(const Header& header, const Quaternion& quaternion)
@@ -31,33 +22,43 @@ QuaternionStamped::QuaternionStamped(const void* data)
   : header_{GetQuaternionStampedFbs(data)->header()->data()}
   , quaternion_{GetQuaternionStampedFbs(data)->quaternion()->data()} {}
 
-QuaternionStamped::QuaternionStamped(const QuaternionStamped& other)
+QuaternionStamped::QuaternionStamped(const QuaternionStamped& other, const std::lock_guard<std::mutex>&)
   : QuaternionStamped{other.header_, other.quaternion_} {}
 
-QuaternionStamped::QuaternionStamped(QuaternionStamped&& other) noexcept
+QuaternionStamped::QuaternionStamped(QuaternionStamped&& other, const std::lock_guard<std::mutex>&) noexcept
   : QuaternionStamped{std::move(other.header_), std::move(other.quaternion_)} {}
 
-QuaternionStamped& QuaternionStamped::operator=(const QuaternionStamped& other) {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    header_ = other.header_;
-    quaternion_ = other.quaternion_;
+QuaternionStamped::QuaternionStamped(const QuaternionStamped& other)
+  : QuaternionStamped{other, std::lock_guard<std::mutex>(other.mutex_)} {}
+
+QuaternionStamped::QuaternionStamped(QuaternionStamped&& other) noexcept
+  : QuaternionStamped{std::forward<QuaternionStamped>(other), std::lock_guard<std::mutex>(other.mutex_)} {}
+
+QuaternionStamped& QuaternionStamped::operator=(const QuaternionStamped& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    header_ = rhs.header_;
+    quaternion_ = rhs.quaternion_;
   }
   return *this;
 }
 
-QuaternionStamped& QuaternionStamped::operator=(QuaternionStamped&& other) noexcept {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    quaternion_ = std::move(other.quaternion_);
-    header_ = std::move(other.header_);
+QuaternionStamped& QuaternionStamped::operator=(QuaternionStamped&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    quaternion_ = std::move(rhs.quaternion_);
+    header_ = std::move(rhs.header_);
   }
   return *this;
 }
 
-QuaternionStamped& QuaternionStamped::operator=(std::shared_ptr<void*> data) {
+QuaternionStamped& QuaternionStamped::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  auto matrix = GetQuaternionStampedFbs(*data);
+  auto matrix = GetQuaternionStampedFbs(*rhs);
   header_ = matrix->header()->data();
   quaternion_ = matrix->quaternion()->data();
   return *this;
@@ -80,6 +81,8 @@ std::shared_ptr<flatbuffers::DetachedBuffer> QuaternionStamped::getBufferData() 
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
+std::string QuaternionStamped::getTopic() { return QuaternionStampedFbsIdentifier(); }
+
 void QuaternionStamped::setHeader(const Header& header) {
   std::lock_guard<std::mutex> lock{mutex_};
   header_ = header;
@@ -90,9 +93,12 @@ void QuaternionStamped::setQuaternion(const Quaternion& quaternion) {
   quaternion_ = quaternion;
 }
 
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const QuaternionStamped& q) {
+  std::lock_guard<std::mutex> lock{q.mutex_};
   out << q.header_ << q.quaternion_;
-
   return out;
 }
 }  // namespace simple_msgs

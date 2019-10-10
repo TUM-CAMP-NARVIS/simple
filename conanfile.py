@@ -17,27 +17,38 @@ class SimpleConan(ConanFile):
     options = {"shared": [True, False]}
     default_options = "shared=False"
 
-    requires = "zmq/[>=4.2.3]@camposs/stable", "flatbuffers/[>=1.8.0]@camposs/stable"
+    requires = ("zmq/[>=4.3.2]@camposs/stable",
+               "cppzmq/4.4.1@camposs/stable",
+               "flatbuffers/[>=1.11.0]@camposs/stable",
+               "opencv/[>=4.1.0]@camposs/stable")
 
     # all sources are deployed with the package
-    exports_sources = "examples/*", "include/*", "msgs/*", "tests/*", "CMakeLists.txt", "simpleConfig.cmake", "LICENSE"
+    exports_sources = "examples/*", "include/*", "msgs/*", "src/*", "tests/*", "CMakeLists.txt", "simpleConfig.cmake", "LICENSE"
 
     def configure(self):
         if self.options.shared:
             self.options['flatbuffers'].shared = True
             self.options['zmq'].shared = True
+            self.options['opencv'].shared = True
 
-    def build(self):
+    def cmake_configure(self):
         cmake = CMake(self)
         cmake.definitions["BUILD_SHARED_LIBS"] = self.options.shared
         # cmake.definitions["BUILD_TESTS"] = True
-        cmake.definitions["BUILD_EXAMPLES"] = True
+        cmake.definitions["BUILD_EXAMPLES"] = 'ON'
+        cmake.definitions["BUILD_EXAMPLES"] = 'ON'
+        cmake.definitions["SIMPLE_BUILD_OPENCV_EXAMPLES"] = 'ON'
         cmake.definitions["FLATBUFFERS_BIN_DIR"] = os.path.join(self.deps_cpp_info["flatbuffers"].rootpath, "bin")
         cmake.configure()
+        return cmake
+
+    def build(self):
+        cmake = self.cmake_configure()
         cmake.build()
-        cmake.install()
 
     def package(self):
+        cmake = self.cmake_configure()
+        cmake.install()
         self.copy(pattern="LICENSE")
 
     def package_info(self):

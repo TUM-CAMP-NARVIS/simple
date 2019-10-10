@@ -3,43 +3,35 @@
  * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
  * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
-#include "simple_msgs/header.h"
-#include "simple_msgs/point.h"
-#include "simple_msgs/point_stamped.h"
+
+#include "random_generators.hpp"
+#include "simple_msgs/point_stamped.hpp"
+
+using namespace simple_tests;
 
 // TEST FOR USING THE STAMPED POINT MESSAGE WRAPPER
 
 SCENARIO("Using a PointStamped Message") {
-  double double_1 = static_cast<double>(rand()) / RAND_MAX;
-  double double_2 = static_cast<double>(rand()) / RAND_MAX;
-  double double_3 = static_cast<double>(rand()) / RAND_MAX;
-  long long time = rand();
-  int random_int = rand() / 100;
+  double double_1 = double_dist(generator);
+  double double_2 = double_dist(generator);
+  double double_3 = double_dist(generator);
+  long long time = static_cast<long long>(double_dist(generator));
+  int random_int = int_dist(generator);
   std::string random_string = std::to_string(double_1);
   simple_msgs::Point random_point(double_1, double_2, double_3);
   simple_msgs::Point empty_point;
   simple_msgs::Header empty_header;
   simple_msgs::Header random_header(random_int, random_string, time);
+
   // Test the constructors.
   GIVEN("A PointStamped created from an empty constructor") {
     simple_msgs::PointStamped empty_point_stamped{};
@@ -61,15 +53,11 @@ SCENARIO("Using a PointStamped Message") {
     }
   }
 
-  // Testing copy constructors.
+  // Testing copy/move constructors.
   GIVEN("A PointStamped") {
     simple_msgs::PointStamped point_stamped{random_header, random_point};
-    WHEN("I copy-construct a PointStamped from its serialized data") {
-      simple_msgs::PointStamped buffer_point_stamped{point_stamped.getBufferData()->data()};
-      THEN("The new PointStamped has to be equal to the other") { REQUIRE(buffer_point_stamped == point_stamped); }
-    }
     WHEN("I copy-construct a new PointStamped") {
-      const simple_msgs::PointStamped& copy_point_stamped{point_stamped};
+      const simple_msgs::PointStamped copy_point_stamped{point_stamped};
       THEN("The new PointStamped is equal to the other") { REQUIRE(copy_point_stamped == point_stamped); }
     }
     WHEN("I move-construct a new PointStamped") {
@@ -81,17 +69,9 @@ SCENARIO("Using a PointStamped Message") {
     }
   }
 
-  // Testing Copy-assignments.
+  // Testing copy/move assignments.
   GIVEN("A PointStamped") {
     simple_msgs::PointStamped point_stamped{random_header, random_point};
-    WHEN("I copy-assign from that PointStamped's buffer") {
-      simple_msgs::PointStamped copy_assigned_buffer_point_stamped{};
-      auto data_ptr = std::make_shared<void*>(point_stamped.getBufferData()->data());
-      copy_assigned_buffer_point_stamped = data_ptr;
-      THEN("The new PointStamped has to be same as the original") {
-        REQUIRE(copy_assigned_buffer_point_stamped == point_stamped);
-      }
-    }
     WHEN("I copy-assign from that PointStamped") {
       simple_msgs::PointStamped copy_assigned_point_stamped{};
       copy_assigned_point_stamped = point_stamped;
@@ -135,11 +115,11 @@ SCENARIO("Using a PointStamped Message") {
     }
   }
 
-  // Testing Topic and ostream
+  // Testing message topic and stream operator.
   GIVEN("A point") {
     simple_msgs::PointStamped point_stamped{};
     WHEN("I get the message topic") {
-      std::string topic_name = point_stamped.getTopic();
+      std::string topic_name = simple_msgs::PointStamped::getTopic();
       THEN("I get the correct one") { REQUIRE(topic_name == "PTST"); }
     }
     WHEN("I print the PointStamped") {

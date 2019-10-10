@@ -1,4 +1,11 @@
-build: false
+# version string format -- This will be overwritten later anyway
+version: "{build}"
+
+os:
+  - Visual Studio 2017
+
+configuration:
+  - Release
 
 environment:
     PYTHON: "C:\\Python36-x64"
@@ -26,3 +33,59 @@ install:
 
 test_script:
   - python build.py
+  - mkdir deps && cd deps
+  - git clone https://github.com/google/flatbuffers.git # Checkout master Flatbuffers
+  - cd flatbuffers && mkdir flatbuffer_build && cd flatbuffer_build
+  - cmake -G "%CMAKE_GENERATOR% Win64" -DCMAKE_BUILD_TYPE=%CONFIGURATION% .. # Flatbuffers doesn't install flatc other than in Release.
+  - cmake --build . --target install --config %CONFIGURATION%
+  - cd %APPVEYOR_BUILD_FOLDER%/deps
+  - git clone https://github.com/zeromq/libzmq.git # Checkout master libzmq
+  - cd libzmq && mkdir libzmq_build && cd libzmq_build
+  - cmake -G "%CMAKE_GENERATOR% Win64" -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DENABLE_CURVE=OFF -DZMQ_BUILD_TESTS=OFF ..
+  - cmake --build . --target install --config %CONFIGURATION%
+  - cd %APPVEYOR_BUILD_FOLDER%/deps
+  - git clone https://github.com/zeromq/cppzmq.git # Checkout master cppzmq
+  - cd cppzmq && mkdir cppzmq_build && cd cppzmq_build
+  - cmake -G "%CMAKE_GENERATOR% Win64" -DCMAKE_BUILD_TYPE=%CONFIGURATION% -DCPPZMQ_BUILD_TESTS=OFF ..
+  - cmake --build . --target install --config %CONFIGURATION%
+
+before_build:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - rmdir deps /s /q
+  - mkdir build && cd build
+  - ps: >-
+      If ($env:APPVEYOR_REPO_TAG -eq "false") {
+        cmake -G "$env:CMAKE_GENERATOR Win64" -DSIMPLE_BUILD_TESTS=ON -DSIMPLE_BUILD_EXAMPLES=ON ..
+      } Else {
+        cmake -G "$env:CMAKE_GENERATOR Win64" -DSIMPLE_BUILD_STATIC=OFF -DSIMPLE_ENABLE_CPACK=ON ..
+      }
+
+build_script:
+  - cmake --build . --config %CONFIGURATION% -- /verbosity:minimal
+
+test_script:
+  - ps: >-
+      If ($env:APPVEYOR_REPO_TAG -eq "false") { 
+        ctest -R simple_tests -C $env:CONFIGURATION --output-on-failure
+      }
+
+after_build:
+  - ps: >-
+      If ($env:APPVEYOR_REPO_TAG -eq "true") { 
+        cpack
+      }
+
+artifacts:
+- path: 'build/*.exe'
+  name: simple_artifact
+
+deploy:
+  description: 'S.I.M.P.L.E. Release'
+  provider: GitHub
+  auth_token:
+    secure: /Zfum05XMUCPaLKLsrsOTr/t4A8Kvz3lDN4ajPt6SZRlU+AX1/ee0CqpgR5AKCGg
+  artifact: simple_artifact
+  draft: false
+  prerelease: false
+  on:
+    APPVEYOR_REPO_TAG: true

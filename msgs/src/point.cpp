@@ -1,22 +1,15 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include "simple_msgs/point.h"
+#include "simple_msgs/point.hpp"
+#include "simple_msgs/generated/point_generated.h"
 
 namespace simple_msgs {
 Point::Point(double value) : data_{{value, value, value}} {}
@@ -34,43 +27,75 @@ Point::Point(const void* data) {
   data_[2] = p->z();
 }
 
-Point::Point(const Point& other) : Point{other.data_} {}
+Point::Point(const Point& other, const std::lock_guard<std::mutex>&) : Point{other.data_} {}
 
-Point::Point(Point&& other) noexcept : data_{std::move(other.data_)} {}
+Point::Point(Point&& other, const std::lock_guard<std::mutex>&) noexcept : data_{std::move(other.data_)} {}
 
-Point& Point::operator=(const Point& other) {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    data_ = other.data_;
+Point::Point(const Point& other) : Point{other, std::lock_guard<std::mutex>(other.mutex_)} {}
+
+Point::Point(Point&& other) noexcept : Point{std::forward<Point>(other), std::lock_guard<std::mutex>(other.mutex_)} {}
+
+Point& Point::operator=(const Point& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    data_ = rhs.data_;
   }
   return *this;
 }
 
-Point& Point::operator=(Point&& other) noexcept {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    data_ = std::move(other.data_);
+Point& Point::operator=(Point&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    data_ = std::move(rhs.data_);
   }
   return *this;
 }
 
-Point& Point::operator=(const std::array<double, 3>& array) {
+Point& Point::operator=(const std::array<double, 3>& rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  data_ = array;
+  data_ = rhs;
   return *this;
 }
 
-Point& Point::operator=(std::array<double, 3>&& array) noexcept {
+Point& Point::operator=(std::array<double, 3>&& rhs) noexcept {
   std::lock_guard<std::mutex> lock{mutex_};
-  data_ = std::move(array);
+  data_ = std::move(rhs);
   return *this;
 }
 
-Point& Point::operator=(std::shared_ptr<void*> data) {
+Point& Point::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  auto p = GetPointFbs(*data);
+  auto p = GetPointFbs(*rhs);
   data_ = std::array<double, 3>{{p->x(), p->y(), p->z()}};
   return *this;
+}
+
+Point& Point::operator++() {
+  std::lock_guard<std::mutex> lock{mutex_};
+  std::transform(std::begin(data_), std::end(data_), std::begin(data_), [](double e) { return ++e; });
+  return *this;
+}
+
+Point Point::operator++(int) {
+  Point tmp(*this);
+  operator++();
+  return tmp;
+}
+
+Point& Point::operator--() {
+  std::lock_guard<std::mutex> lock{mutex_};
+  std::transform(std::begin(data_), std::end(data_), std::begin(data_), [](double e) { return --e; });
+  return *this;
+}
+
+Point Point::operator--(int) {
+  Point tmp(*this);
+  operator--();
+  return tmp;
 }
 
 Point& Point::operator+=(const Point& rhs) {
@@ -79,6 +104,9 @@ Point& Point::operator+=(const Point& rhs) {
   return *this;
 }
 
+/**
+ * @brief Addition operator.
+ */
 Point operator+(Point lhs, const Point& rhs) {
   lhs += rhs;
   return lhs;
@@ -90,6 +118,9 @@ Point& Point::operator-=(const Point& rhs) {
   return *this;
 }
 
+/**
+ * @brief Subtraction operator.
+ */
 Point operator-(Point lhs, const Point& rhs) {
   lhs -= rhs;
   return lhs;
@@ -102,6 +133,9 @@ Point& Point::operator*=(const Point& rhs) {
   return *this;
 }
 
+/**
+ * @brief Multiplication operator.
+ */
 Point operator*(Point lhs, const Point& rhs) {
   lhs *= rhs;
   return lhs;
@@ -113,6 +147,9 @@ Point& Point::operator/=(const Point& rhs) {
   return *this;
 }
 
+/**
+ * @brief Division operator.
+ */
 Point operator/(Point lhs, const Point& rhs) {
   lhs /= rhs;
   return lhs;
@@ -129,6 +166,8 @@ std::shared_ptr<flatbuffers::DetachedBuffer> Point::getBufferData() const {
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
+std::string Point::getTopic() { return PointFbsIdentifier(); }
+
 void Point::setX(double x) {
   std::lock_guard<std::mutex> lock{mutex_};
   data_[0] = x;
@@ -143,7 +182,11 @@ void Point::setZ(double z) {
   data_[2] = z;
 }
 
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const Point& p) {
+  std::lock_guard<std::mutex> lock{p.mutex_};
   out << "Point \n \t"
       << "x: " << std::to_string(p.data_[0]) << "\n \t"
       << "y: " << std::to_string(p.data_[1]) << "\n \t"

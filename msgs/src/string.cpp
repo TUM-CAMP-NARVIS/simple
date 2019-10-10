@@ -1,25 +1,15 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include <algorithm>
-#include <utility>
-
-#include "simple_msgs/string.h"
+#include "simple_msgs/string.hpp"
+#include "simple_msgs/generated/string_generated.h"
 
 namespace simple_msgs {
 String::String(const std::string& data) : data_{data} {}
@@ -30,30 +20,39 @@ String::String(const char* data) : data_{data} {}
 
 String::String(const void* data) : data_{GetStringFbs(data)->data()->c_str()} {}
 
-String::String(const String& other) : String{other.data_} {}
+String::String(const String& other, const std::lock_guard<std::mutex>&) : String{other.data_} {}
 
-String::String(String&& other) noexcept : data_{std::move(other.data_)} {}
+String::String(String&& other, const std::lock_guard<std::mutex>&) noexcept : data_{std::move(other.data_)} {}
 
-String& String::operator=(const String& other) {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    data_ = other.data_;
+String::String(const String& other) : String{other, std::lock_guard<std::mutex>(other.mutex_)} {}
+
+String::String(String&& other) noexcept
+  : String{std::forward<String>(other), std::lock_guard<std::mutex>(other.mutex_)} {}
+
+String& String::operator=(const String& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    data_ = rhs.data_;
   }
   return *this;
 }
 
-String& String::operator=(String&& other) noexcept {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    data_ = std::move(other.data_);
-    other.data_.clear();
+String& String::operator=(String&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    data_ = std::move(rhs.data_);
+    rhs.data_.clear();
   }
   return *this;
 }
 
-String& String::operator=(std::shared_ptr<void*> data) {
+String& String::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  data_ = GetStringFbs(*data)->data()->c_str();
+  data_ = GetStringFbs(*rhs)->data()->c_str();
   return *this;
 }
 
@@ -63,6 +62,9 @@ String& String::operator+=(const String& rhs) {
   return *this;
 }
 
+/**
+ * @brief Concatenates two Strings.
+ */
 String operator+(String lhs, const String& rhs) {
   lhs += rhs;
   return lhs;
@@ -80,7 +82,13 @@ std::shared_ptr<flatbuffers::DetachedBuffer> String::getBufferData() const {
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
+std::string String::getTopic() { return StringFbsIdentifier(); }
+
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const String& s) {
+  std::lock_guard<std::mutex> lock{s.mutex_};
   out << s.data_;
   return out;
 }

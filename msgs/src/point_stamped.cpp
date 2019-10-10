@@ -1,24 +1,15 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include <utility>
-
-#include "simple_msgs/point_stamped.h"
+#include "simple_msgs/point_stamped.hpp"
+#include "simple_msgs/generated/point_stamped_generated.h"
 
 namespace simple_msgs {
 PointStamped::PointStamped(const Header& header, const Point& point) : header_{header}, point_{point} {}
@@ -28,32 +19,43 @@ PointStamped::PointStamped(Header&& header, Point&& point) : header_{std::move(h
 PointStamped::PointStamped(const void* data)
   : header_{GetPointStampedFbs(data)->header()->data()}, point_{GetPointStampedFbs(data)->point()->data()} {}
 
-PointStamped::PointStamped(const PointStamped& other) : PointStamped{other.header_, other.point_} {}
+PointStamped::PointStamped(const PointStamped& other, const std::lock_guard<std::mutex>&)
+  : PointStamped{other.header_, other.point_} {}
 
-PointStamped::PointStamped(PointStamped&& other) noexcept
+PointStamped::PointStamped(PointStamped&& other, const std::lock_guard<std::mutex>&) noexcept
   : PointStamped{std::move(other.header_), std::move(other.point_)} {}
 
-PointStamped& PointStamped::operator=(const PointStamped& other) {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    header_ = other.header_;
-    point_ = other.point_;
+PointStamped::PointStamped(const PointStamped& other)
+  : PointStamped{other, std::lock_guard<std::mutex>(other.mutex_)} {}
+
+PointStamped::PointStamped(PointStamped&& other) noexcept
+  : PointStamped{std::forward<PointStamped>(other), std::lock_guard<std::mutex>(other.mutex_)} {}
+
+PointStamped& PointStamped::operator=(const PointStamped& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    header_ = rhs.header_;
+    point_ = rhs.point_;
   }
   return *this;
 }
 
-PointStamped& PointStamped::operator=(PointStamped&& other) noexcept {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    header_ = std::move(other.header_);
-    point_ = std::move(other.point_);
+PointStamped& PointStamped::operator=(PointStamped&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    header_ = std::move(rhs.header_);
+    point_ = std::move(rhs.point_);
   }
   return *this;
 }
 
-PointStamped& PointStamped::operator=(std::shared_ptr<void*> data) {
+PointStamped& PointStamped::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  auto p = GetPointStampedFbs(*data);
+  auto p = GetPointStampedFbs(*rhs);
   header_ = p->header()->data();
   point_ = p->point()->data();
   return *this;
@@ -76,17 +78,23 @@ std::shared_ptr<flatbuffers::DetachedBuffer> PointStamped::getBufferData() const
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
-void PointStamped::setHeader(const Header& h) {
+std::string PointStamped::getTopic() { return PointStampedFbsIdentifier(); }
+
+void PointStamped::setHeader(const Header& header) {
   std::lock_guard<std::mutex> lock{mutex_};
-  header_ = h;
+  header_ = header;
 }
 
-void PointStamped::setPoint(const Point& p) {
+void PointStamped::setPoint(const Point& point) {
   std::lock_guard<std::mutex> lock{mutex_};
-  point_ = p;
+  point_ = point;
 }
 
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const PointStamped& p) {
+  std::lock_guard<std::mutex> lock{p.mutex_};
   out << p.header_ << p.point_;
   return out;
 }

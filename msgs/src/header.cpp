@@ -1,63 +1,65 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include <utility>
-
-#include "simple_msgs/header.h"
+#include "simple_msgs/header.hpp"
+#include "simple_msgs/generated/header_generated.h"
 
 namespace simple_msgs {
-Header::Header(int seq_n, const std::string& frame_id, long long timestamp)
-  : seq_n_{seq_n}, frame_id_{frame_id}, timestamp_{timestamp} {}
+Header::Header(int sequence_number, const std::string& frame_id, long long timestamp)
+  : seq_n_{sequence_number}, frame_id_{frame_id}, timestamp_{timestamp} {}
 
 Header::Header(const void* data)
   : seq_n_{GetHeaderFbs(data)->sequence_number()}
   , frame_id_{GetHeaderFbs(data)->frame_id()->c_str()}
   , timestamp_{static_cast<long long>(GetHeaderFbs(data)->timestamp())} {}
 
-Header::Header(const Header& h) : Header{h.seq_n_, h.frame_id_, h.timestamp_} {}
+Header::Header(const Header& other, const std::lock_guard<std::mutex>&)
+  : Header{other.seq_n_, other.frame_id_, other.timestamp_} {}
+
+Header::Header(Header&& other, const std::lock_guard<std::mutex>&) noexcept
+  : seq_n_{other.seq_n_}, frame_id_(std::move(other.frame_id_)), timestamp_{other.timestamp_} {}
+
+Header::Header(const Header& other) : Header(other, std::lock_guard<std::mutex>(other.mutex_)) {}
 
 Header::Header(Header&& other) noexcept
-  : seq_n_{std::move(other.seq_n_)}, frame_id_(std::move(other.frame_id_)), timestamp_{std::move(other.timestamp_)} {}
+  : Header(std::forward<Header>(other), std::lock_guard<std::mutex>(other.mutex_)) {}
 
-Header& Header::operator=(const Header& other) {
-  if (this != std::addressof(other)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    seq_n_ = other.seq_n_;
-    frame_id_ = other.frame_id_;
-    timestamp_ = other.timestamp_;
+Header& Header::operator=(const Header& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    seq_n_ = rhs.seq_n_;
+    frame_id_ = rhs.frame_id_;
+    timestamp_ = rhs.timestamp_;
   }
   return *this;
 }
 
-Header& Header::operator=(Header&& other) noexcept {
-  if (this != std::addressof(other)) {
-    seq_n_ = std::move(other.seq_n_);
-    frame_id_ = std::move(other.frame_id_);
-    timestamp_ = std::move(other.timestamp_);
+Header& Header::operator=(Header&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    seq_n_ = rhs.seq_n_;
+    frame_id_ = std::move(rhs.frame_id_);
+    timestamp_ = rhs.timestamp_;
   }
   return *this;
 }
 
-Header& Header::operator=(std::shared_ptr<void*> data) {
+Header& Header::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  seq_n_ = GetHeaderFbs(*data)->sequence_number();
-  frame_id_ = std::move(GetHeaderFbs(*data)->frame_id()->c_str());
-  timestamp_ = static_cast<long long>(GetHeaderFbs(*data)->timestamp());
+  seq_n_ = GetHeaderFbs(*rhs)->sequence_number();
+  frame_id_ = std::move(GetHeaderFbs(*rhs)->frame_id()->c_str());
+  timestamp_ = static_cast<long long>(GetHeaderFbs(*rhs)->timestamp());
   return *this;
 }
 
@@ -73,9 +75,11 @@ std::shared_ptr<flatbuffers::DetachedBuffer> Header::getBufferData() const {
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
-void Header::setSequenceNumber(int seq_n) {
+std::string Header::getTopic() { return HeaderFbsIdentifier(); }
+
+void Header::setSequenceNumber(int sequence_number) {
   std::lock_guard<std::mutex> lock{mutex_};
-  seq_n_ = seq_n;
+  seq_n_ = sequence_number;
 }
 
 void Header::setFrameID(const std::string& frame_id) {
@@ -88,7 +92,11 @@ void Header::setTimestamp(long long timestamp) {
   timestamp_ = timestamp;
 }
 
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const Header& h) {
+  std::lock_guard<std::mutex> lock{h.mutex_};
   out << "Header\n \t"
       << "seq_n: " << std::to_string(h.seq_n_) << "\n \t"
       << "frame_id: " << h.frame_id_ << "\n \t"

@@ -20,7 +20,7 @@
 #include <thread>
 
 #include "simple/publisher.hpp"
-#include "simple_msgs/pose_stamped.h"
+#include "simple_msgs/pose_stamped.hpp"
 
 int main()
 {

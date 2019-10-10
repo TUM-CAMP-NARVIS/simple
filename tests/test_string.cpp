@@ -1,28 +1,19 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
-#include "simple_msgs/string.h"
+
+#include "simple_msgs/string.hpp"
 
 // TEST FOR USING THE STRING MESSAGE WRAPPER
 
@@ -30,6 +21,7 @@ SCENARIO("Using a String Message") {
   std::string string_1{"abcd"};
   std::string string_2{"efg"};
   const char* char_1{"hijk"};
+
   // Testing constructors.
   GIVEN("A String created from an empty constructor") {
     simple_msgs::String empty_string{};
@@ -45,20 +37,9 @@ SCENARIO("Using a String Message") {
     }
   }
 
-  GIVEN("A String created from a const char*") {
-    simple_msgs::String single_string{char_1};
-    WHEN("We check the String's value") {
-      THEN("It has to be equal to the params from the constructor") { REQUIRE(single_string.get() == char_1); }
-    }
-  }
-
-  // Testing copy-constructors.
+  // Testing copy/move constructors.
   GIVEN("A String") {
     simple_msgs::String single_string{string_1};
-    WHEN("I construct a new String from the serialized data of the existing String") {
-      simple_msgs::String copy_buffer_string(single_string.getBufferData()->data());
-      THEN("The new String has to be equal to the other") { REQUIRE(copy_buffer_string == single_string); }
-    }
     WHEN("I copy-construct a new String") {
       simple_msgs::String copy_string{single_string};
       THEN("The new String is equal to the other") { REQUIRE(copy_string == single_string); }
@@ -69,15 +50,9 @@ SCENARIO("Using a String Message") {
     }
   }
 
-  // Testing copy-assignments.
+  // Testing copy/move assignments.
   GIVEN("A String") {
     simple_msgs::String single_string{string_1};
-    WHEN("I copy-assign from that String's buffer") {
-      simple_msgs::String copy_assigned_buffer_string{};
-      auto data_ptr = std::make_shared<void*>(single_string.getBufferData()->data());
-      copy_assigned_buffer_string = data_ptr;
-      THEN("The new String has to be same as the original") { REQUIRE(copy_assigned_buffer_string == single_string); }
-    }
     WHEN("I copy-assign from that String") {
       simple_msgs::String copy_assigned_string{};
       copy_assigned_string = single_string;
@@ -123,14 +98,20 @@ SCENARIO("Using a String Message") {
       simple_msgs::String added_string = single_string_1 + single_string_2;
       THEN("The new value is correct") { REQUIRE(added_string.get() == string_1 + string_2); }
     }
+  }
+
+  // Testing message topic and stream operator.
+  GIVEN("A String") {
+    simple_msgs::String string{string_1};
+
     WHEN("I get the message topic") {
-      std::string topic_name = single_string_1.getTopic();
+      std::string topic_name = simple_msgs::String::getTopic();
       THEN("I get the correct one") { REQUIRE(topic_name == "STRG"); }
     }
     WHEN("I print the String") {
       std::ostringstream out;
-      out << single_string_1;
-      THEN("The output is correct") { REQUIRE(out.str() == single_string_1.get()); }
+      out << string;
+      THEN("The output is correct") { REQUIRE(out.str() == string_1); }
     }
   }
 }

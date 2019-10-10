@@ -3,33 +3,27 @@
  * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
  * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
+
+#include "random_generators.hpp"
 #include "simple_msgs/int.hpp"
+
+using namespace simple_tests;
 
 // TEST FOR USING THE Int MESSAGE WRAPPER
 
 SCENARIO("Using a Int Message") {
-  int int_1 = rand() / 100;
-  int int_2 = rand() / 100;
+  int int_1 = int_dist(generator);
+  int int_2 = int_dist(generator);
+
   // Testing constructors.
   GIVEN("A Int created from an empty constructor") {
     simple_msgs::Int empty_Int{};
@@ -45,13 +39,9 @@ SCENARIO("Using a Int Message") {
     }
   }
 
-  // Testing copy-constructors.
+  // Testing copy/move constructors.
   GIVEN("A Int") {
     simple_msgs::Int single_Int{int_1};
-    WHEN("I construct a new Int from the serialized data of the existing Int") {
-      simple_msgs::Int copy_buffer_Int(single_Int.getBufferData()->data());
-      THEN("The new Int is equal to the original") { REQUIRE(copy_buffer_Int == single_Int); }
-    }
     WHEN("I copy-construct a new Int") {
       const simple_msgs::Int& copy_Int{single_Int};
       THEN("The new Int is equal to the original") { REQUIRE(copy_Int == single_Int); }
@@ -64,15 +54,9 @@ SCENARIO("Using a Int Message") {
     }
   }
 
-  // Testing copy-assignments.
+  // Testing copy/move assignments.
   GIVEN("A Int") {
     simple_msgs::Int single_Int{int_1};
-    WHEN("I copy-assign from that Int's buffer") {
-      simple_msgs::Int copy_assigned_buffer_Int{};
-      auto data_ptr = std::make_shared<void*>(single_Int.getBufferData()->data());
-      copy_assigned_buffer_Int = data_ptr;
-      THEN("The new Int is equal to the original") { REQUIRE(copy_assigned_buffer_Int == single_Int); }
-    }
     WHEN("I copy-assign from that Int") {
       simple_msgs::Int copy_assigned_Int{};
       copy_assigned_Int = single_Int;
@@ -109,50 +93,11 @@ SCENARIO("Using a Int Message") {
     }
   }
 
+  // Testing message topic and stream operator.
   GIVEN("A Int") {
     simple_msgs::Int single_Int(int_1);
-    WHEN("I increase its value (operator++)") {
-      single_Int++;
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 + 1); }
-    }
-    WHEN("I decrease its value (operator--)") {
-      single_Int--;
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 - 1); }
-    }
-    WHEN("I add a value to it (operator+)") {
-      single_Int += 2;
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 + 2); }
-    }
-    WHEN("I subtract a value to it (operator-)") {
-      single_Int -= 5;
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 - 5); }
-    }
-    WHEN("I multiply its value (operator*)") {
-      single_Int *= 2;
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 * 2); }
-    }
-    WHEN("I divide its value (operator/)") {
-      single_Int /= 5;
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 / 5); }
-    }
-    WHEN("I add another Int to it") {
-      single_Int = single_Int + simple_msgs::Int{6};
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 + 6); }
-    }
-    WHEN("I subtract another Int to it") {
-      single_Int = single_Int - simple_msgs::Int{6};
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 - 6); }
-    }
-    WHEN("I multiply another Int to it") {
-      single_Int = single_Int * simple_msgs::Int{6};
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 * 6); }
-    }
-    WHEN("I divide another Int to it") {
-      single_Int = single_Int / simple_msgs::Int{6};
-      THEN("The new value is correct") { REQUIRE(single_Int.get() == int_1 / 6); }
-    }
     WHEN("I get the message topic") {
-      std::string topic_name = single_Int.getTopic();
+      std::string topic_name = simple_msgs::Int::getTopic();
       THEN("I get the correct one") { REQUIRE(topic_name == "INTF"); }
     }
     WHEN("I print the Int") {

@@ -3,38 +3,28 @@
  * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
  * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <cstdlib>
-#include <ctime>
 #include <iostream>
 
-#include "simple_msgs/header.h"
-#include "simple_msgs/quaternion.h"
-#include "simple_msgs/quaternion_stamped.h"
+#include "random_generators.hpp"
+#include "simple_msgs/quaternion_stamped.hpp"
+
+using namespace simple_tests;
 
 // TEST FOR USING THE STAMPED QUATERNION MESSAGE WRAPPER
 
 SCENARIO("Using a QuaternionStamped Message") {
-  double double_1 = static_cast<double>(rand()) / RAND_MAX;
-  double double_2 = static_cast<double>(rand()) / RAND_MAX;
-  double double_3 = static_cast<double>(rand()) / RAND_MAX;
-  double double_4 = static_cast<double>(rand()) / RAND_MAX;
+  double double_1 = double_dist(generator);
+  double double_2 = double_dist(generator);
+  double double_3 = double_dist(generator);
+  double double_4 = double_dist(generator);
   long long time = rand();
   int random_int = rand() / 100;
   std::string random_string = std::to_string(double_1);
@@ -64,16 +54,6 @@ SCENARIO("Using a QuaternionStamped Message") {
     }
   }
 
-  GIVEN("A QuaternionStamped created from the serialized data of an existing QuaternionStamped") {
-    simple_msgs::QuaternionStamped quaternion_stamped{random_header, random_quaternion};
-    simple_msgs::QuaternionStamped buffer_quaternion_stamped{quaternion_stamped.getBufferData()->data()};
-    WHEN("I check the QuaternionStamped's elements") {
-      THEN("The new QuaternionStamped has to be equal to the other") {
-        REQUIRE(buffer_quaternion_stamped == quaternion_stamped);
-      }
-    }
-  }
-
   // Testing copy constructors.
   GIVEN("A QuaternionStamped") {
     simple_msgs::QuaternionStamped quaternion_stamped{random_header, random_quaternion};
@@ -95,14 +75,6 @@ SCENARIO("Using a QuaternionStamped Message") {
   // Testing Copy-assignments.
   GIVEN("A QuaternionStamped") {
     simple_msgs::QuaternionStamped quaternion_stamped{random_header, random_quaternion};
-    WHEN("I copy-assign from that QuaternionStamped's buffer") {
-      simple_msgs::QuaternionStamped copy_assigned_buffer_quaternion_stamped{};
-      auto data_ptr = std::make_shared<void*>(quaternion_stamped.getBufferData()->data());
-      copy_assigned_buffer_quaternion_stamped = data_ptr;
-      THEN("The new QuaternionStamped has to be same as the original") {
-        REQUIRE(copy_assigned_buffer_quaternion_stamped == quaternion_stamped);
-      }
-    }
     WHEN("I copy-assign from that QuaternionStamped") {
       simple_msgs::QuaternionStamped copy_assigned_quaternion_stamped{};
       copy_assigned_quaternion_stamped = quaternion_stamped;
@@ -146,11 +118,11 @@ SCENARIO("Using a QuaternionStamped Message") {
     }
   }
 
-  // Testing Topic
+  // Testing message topic and stream operator.
   GIVEN("A point") {
     simple_msgs::QuaternionStamped quaternion_stamped{};
     WHEN("I get the message topic") {
-      std::string topic_name = quaternion_stamped.getTopic();
+      std::string topic_name = simple_msgs::QuaternionStamped::getTopic();
       THEN("I get the correct one") { REQUIRE(topic_name == "QTST"); }
     }
     WHEN("I print the QuaternionStamped") {

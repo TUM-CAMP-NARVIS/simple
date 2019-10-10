@@ -1,24 +1,15 @@
 /**
  * S.I.M.P.L.E. - Smart Intuitive Messaging Platform with Less Effort
- * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy Langsch - fernanda.langsch@tum.de
+ * Copyright (C) 2018 Salvatore Virga - salvo.virga@tum.de, Fernanda Levy
+ * Langsch - fernanda.langsch@tum.de
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser Public License for more details.
- *
- * You should have received a copy of the GNU Lesser Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#include <utility>
-
-#include "simple_msgs/pose.h"
+#include "simple_msgs/pose.hpp"
+#include "simple_msgs/generated/pose_generated.h"
 
 namespace simple_msgs {
 Pose::Pose(const Point& position, const Quaternion& quaternion) : position_{position}, quaternion_{quaternion} {}
@@ -29,32 +20,41 @@ Pose::Pose(Point&& position, Quaternion&& quaternion)
 Pose::Pose(const void* data)
   : position_{GetPoseFbs(data)->position()->data()}, quaternion_{GetPoseFbs(data)->quaternion()->data()} {}
 
-Pose::Pose(const Pose& other) : Pose{other.position_, other.quaternion_} {}
+Pose::Pose(const Pose& other, const std::lock_guard<std::mutex>&) : Pose{other.position_, other.quaternion_} {}
 
-Pose::Pose(Pose&& other) noexcept : Pose{std::move(other.position_), std::move(other.quaternion_)} {}
+Pose::Pose(Pose&& other, const std::lock_guard<std::mutex>&) noexcept
+  : Pose{std::move(other.position_), std::move(other.quaternion_)} {}
 
-Pose& Pose::operator=(const Pose& p) {
-  if (this != std::addressof(p)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    position_ = p.position_;
-    quaternion_ = p.quaternion_;
+Pose::Pose(const Pose& other) : Pose{other, std::lock_guard<std::mutex>(other.mutex_)} {}
+
+Pose::Pose(Pose&& other) noexcept : Pose{std::forward<Pose>(other), std::lock_guard<std::mutex>(other.mutex_)} {}
+
+Pose& Pose::operator=(const Pose& rhs) {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    position_ = rhs.position_;
+    quaternion_ = rhs.quaternion_;
   }
   return *this;
 }
 
-Pose& Pose::operator=(Pose&& p) noexcept {
-  if (this != std::addressof(p)) {
-    std::lock_guard<std::mutex> lock{mutex_};
-    position_ = std::move(p.position_);
-    quaternion_ = std::move(p.quaternion_);
+Pose& Pose::operator=(Pose&& rhs) noexcept {
+  if (this != std::addressof(rhs)) {
+    std::lock(mutex_, rhs.mutex_);
+    std::lock_guard<std::mutex> lock{mutex_, std::adopt_lock};
+    std::lock_guard<std::mutex> other_lock{rhs.mutex_, std::adopt_lock};
+    position_ = std::move(rhs.position_);
+    quaternion_ = std::move(rhs.quaternion_);
   }
   return *this;
 }
 
-Pose& Pose::operator=(std::shared_ptr<void*> data) {
+Pose& Pose::operator=(std::shared_ptr<void*> rhs) {
   std::lock_guard<std::mutex> lock{mutex_};
-  position_ = GetPoseFbs(*data)->position()->data();
-  quaternion_ = GetPoseFbs(*data)->quaternion()->data();
+  position_ = GetPoseFbs(*rhs)->position()->data();
+  quaternion_ = GetPoseFbs(*rhs)->quaternion()->data();
   return *this;
 }
 
@@ -75,17 +75,23 @@ std::shared_ptr<flatbuffers::DetachedBuffer> Pose::getBufferData() const {
   return std::make_shared<flatbuffers::DetachedBuffer>(builder.Release());
 }
 
-void Pose::setQuaternion(const Quaternion& quaternion) {
-  std::lock_guard<std::mutex> lock{mutex_};
-  quaternion_ = quaternion;
-}
+std::string Pose::getTopic() { return PoseFbsIdentifier(); }
 
 void Pose::setPosition(const Point& position) {
   std::lock_guard<std::mutex> lock{mutex_};
   position_ = position;
 }
 
+void Pose::setQuaternion(const Quaternion& quaternion) {
+  std::lock_guard<std::mutex> lock{mutex_};
+  quaternion_ = quaternion;
+}
+
+/**
+ * @brief Stream extraction operator.
+ */
 std::ostream& operator<<(std::ostream& out, const Pose& p) {
+  std::lock_guard<std::mutex> lock{p.mutex_};
   out << "Pose \n \t" << p.position_ << p.quaternion_;
   return out;
 }
